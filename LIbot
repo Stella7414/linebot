@@ -14,8 +14,8 @@ import re
 app = Flask(__name__)
 
 # 🚀 填入你的 LINE Bot API Key
-line_bot_api = LineBotApi('i8DEpkz7jgRNnqRR4mWbPxC5oesrSpXbw2c+5xpzkLASeiBvdtv1uny/4/iXeO4lJygtxMZylP6IlFmQq/Lva/Ftd/H05aGKjTFlHZ3iSZo1sEMmBKRVMTTemEtU0zKtk9S9nqXIGc8CnOWSS80zKAdB04t89/1O/w1cDnyilFU=')
-handler = WebhookHandler('e95d4cac941b6109c3379f5cb7a7c46c')
+line_bot_api = LineBotApi('fuLwWAY1ZfgrgjGky0TyxYjmsiqA77KHI5ktQ/1YQsDLsIbhTo0nAyROjFZDn4IAwMFC++t9S09hlni42hvqtRyZFe1qQ3ptO6PJ8PsL95a/pjjlbovHxjv98jYGABcWtb6VjB2Gvaj7Z95NWD1tGAdB04t89/1O/w1cDnyilFU=')
+handler = WebhookHandler('f2cb6bdd930ac1b56b53bfd69a0df898')
 
 # 🚀 填入你的 Google Places API Key
 GOOGLE_PLACES_API_KEY = 'AIzaSyBqbjGjjpt3Bxo9RB15DE4uVBmoBRlNXVM'
