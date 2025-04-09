@@ -8,7 +8,7 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage, ImageSend
 app = Flask(__name__)
 
 # 🚀 填入你的 LINE Bot API Key
-line_bot_api = LineBotApi('mq9ZVvn1l+oU8+wzdJG45rsLc3+PNFLx97yXR2UOLxHA52qhy0b511DquOklpm+9JHksqaoLpYFg0OnVHav++8/BoCcGs9gKVxQhqCkiAk6BwYQzU9mKo9PMza024tmK3a/2NsTXj0b4sFgB4/hkvAdB04t89/1O/w1cDnyilFU=')
+line_bot_api = LineBotApi('GUqQiN4dN0G4RapM1ASu8kaAvYnzpakUZvKWeqwzhQ1d4RKLD5wnvpc+bsBR3JHksqaoLpYFg0OnVHav++8/ BoCcGs9gKVxQhqCkiAk5UB024uEauQhVRPCkNS8Yq4zQzXeWCJMGGHPstBWswoQdB04t89/1O/w1cDnyilFU=')
 handler = WebhookHandler('38dbff90af3a1d4318b5ec8edecb58f8')
 
 # 🚀 填入你的 Google Places API Key
