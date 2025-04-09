@@ -1,3 +1,5 @@
+直接在常用應用程式中試用 AI 功能 … 使用 Gemini 生成草稿及潤飾內容，並體驗採用 Google 新一代 AI 技術的 Gemini Advanced，第 1 個月只要 $650.00 $0
+LIbot.py
 import os
 import requests
 from flask import Flask, request, abort
@@ -8,7 +10,7 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage, ImageSend
 app = Flask(__name__)
 
 # 🚀 填入你的 LINE Bot API Key
-line_bot_api = LineBotApi('GUqQiN4dN0G4RapM1ASu8kaAvYnzpakUZvKWeqwzhQ1d4RKLD5wnvpc+bsBR3JHksqaoLpYFg0OnVHav++8/ BoCcGs9gKVxQhqCkiAk5UB024uEauQhVRPCkNS8Yq4zQzXeWCJMGGHPstBWswoQdB04t89/1O/w1cDnyilFU=')
+line_bot_api = LineBotApi('HNsGUqQiN4dN0G4RapM1ASu8kaAvYnzpakUZvKWeqwzhQ1d4RKLD5wnvpc+bsBR3JHksqaoLpYFg0OnVHav++8/BoCcGs9gKVxQhqCkiAk5UB024uEauQhVRPCkNS8Yq4zQzXeWCJMGGHPstBWswoQdB04t89/1O/w1cDnyilFU=')
 handler = WebhookHandler('38dbff90af3a1d4318b5ec8edecb58f8')
 
 # 🚀 填入你的 Google Places API Key
