@@ -1,32 +1,28 @@
-# -*- coding: utf-8 -*-
+直接在常用應用程式中試用 AI 功能 … 使用 Gemini 生成草稿及潤飾內容，並體驗採用 Google 新一代 AI 技術的 Gemini Advanced，第 1 個月只要 $650.00 $0
+路線(待修改).txt
 import os
 import requests
-import json
-import emoji
-from datetime import datetime
 from flask import Flask, request, abort
 from linebot import LineBotApi, WebhookHandler
 from linebot.exceptions import InvalidSignatureError
 from linebot.models import MessageEvent, TextMessage, TextSendMessage, ImageSendMessage
-from bs4 import BeautifulSoup
-import re
 
 app = Flask(__name__)
 
 # 🚀 填入你的 LINE Bot API Key
-line_bot_api = LineBotApi('fuLwWAY1ZfgrgjGky0TyxYjmsiqA77KHI5ktQ/1YQsDLsIbhTo0nAyROjFZDn4IAwMFC++t9S09hlni42hvqtRyZFe1qQ3ptO6PJ8PsL95a/pjjlbovHxjv98jYGABcWtb6VjB2Gvaj7Z95NWD1tGAdB04t89/1O/w1cDnyilFU=')
-handler = WebhookHandler('f2cb6bdd930ac1b56b53bfd69a0df898')
+line_bot_api = LineBotApi('i8DEpkz7jgRNnqRR4mWbPxC5oesrSpXbw2c+5xpzkLASeiBvdtv1uny/4/iXeO4lJygtxMZylP6IlFmQq/Lva/Ftd/H05aGKjTFlHZ3iSZo1sEMmBKRVMTTemEtU0zKtk9S9nqXIGc8CnOWSS80zKAdB04t89/1O/w1cDnyilFU=')
+handler = WebhookHandler('e95d4cac941b6109c3379f5cb7a7c46c')
 
 # 🚀 填入你的 Google Places API Key
 GOOGLE_PLACES_API_KEY = 'AIzaSyBqbjGjjpt3Bxo9RB15DE4uVBmoBRlNXVM'
+GOOGLE_MAPS_API_KEY = 'AIzaSyBqbjGjjpt3Bxo9RB15DE4uVBmoBRlNXVM'
 
-
-# 📍 Google Places API 查詢函數（加入餐廳排名與圖片）
+# 📍 Google Places API 查詢函數（顯示最多 3 間餐廳）
 def search_restaurants(location):
     url = "https://maps.googleapis.com/maps/api/place/textsearch/json"
     params = {
         "query": f"{location} 餐廳",
-        "key": GOOGLE_PLACES_API_KEY,
+        "key":GOOGLE_PLACES_API_KEY ,
         "language": "zh-TW",
     }
 
@@ -35,140 +31,122 @@ def search_restaurants(location):
         response.raise_for_status()
         data = response.json()
 
-        # 如果 API 沒回傳結果
         if "results" not in data or not data["results"]:
-            return "😢 沒有找到相關餐廳，請換個關鍵字試試看！"
+            return ["😢 沒有找到相關餐廳，請換個關鍵字試試看！"]
 
-        # 按評分排序（由高到低）並選取前 5 名
-        restaurants = sorted(data["results"], key=lambda r: r.get("rating", 0), reverse=True)[:5]
-        
-        messages = []
+        restaurants = sorted(data["results"], key=lambda r: r.get("rating", 0), reverse=True)[:3]
 
+        messages = ["🍽 **熱門餐廳推薦** 🍽\n"]
         for index, r in enumerate(restaurants, start=1):
             name = r.get("name", "未知餐廳")
             rating = r.get("rating", "無評分")
             address = r.get("formatted_address", "無地址資訊")
             business_status = r.get("business_status", "無營業資訊")
+            place_id = r.get("place_id", "")
 
-            reply_text = (
-                f"🏆 **{index}. {name}**\n"
-                f"⭐ 評分：{rating}/5.0\n"
-                f"📍 地址：{address}\n"
-                f"🕒 營業狀況：{business_status}"
-            )
-
-            # 檢查是否有圖片
+            # 獲取照片
             photo_url = None
-            if "photos" in r and r["photos"]:
+            if "photos" in r:
                 photo_reference = r["photos"][0]["photo_reference"]
-                photo_url = f"https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference={photo_reference}&key={GOOGLE_PLACES_API_KEY}"
+                photo_url = f"https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference={photo_reference}&key={GOOGLE_PLACES_API_KEY}"
 
-            # 回應文字訊息
-            messages.append(TextSendMessage(text=reply_text))
+            # 獲取評論
+            reviews = get_reviews(place_id)
 
-            # 回應圖片訊息（如果有圖片）
+            message = f"🏆 **{index}. {name}**\n"
+            message += f"⭐ 評分：{rating}/5.0\n"
+            message += f"📍 地址：{address}\n"
+            message += f"🕒 營業狀況：{business_status}\n"
+            if reviews:
+                message += f"💬 最佳評論：{reviews}\n"
+            message += f"🚗 [Google Maps 導航](https://www.google.com/maps/search/?api=1&query={address.replace(' ', '+')})\n"
+
+            messages.append(message.strip())  # 加入文字訊息
+
             if photo_url:
-                messages.append(ImageSendMessage(original_content_url=photo_url, preview_image_url=photo_url))
+                messages.append(photo_url)  # 直接加入圖片 URL
 
         return messages
 
     except requests.exceptions.RequestException as e:
-        return [TextSendMessage(text=f"❌ 無法獲取餐廳資訊：{e}")]
+        return [f"❌ 無法獲取餐廳資訊：{e}"]
 
+# 🔄 獲取餐廳評論
+def get_reviews(place_id):
+    review_url = "https://maps.googleapis.com/maps/api/place/details/json"
+    params = {
+        "place_id": place_id,
+        "key": GOOGLE_PLACES_API_KEY,
+        "language": "zh-TW"
+    }
 
-# GoogleMapSpider 查詢相關餐廳的方法
-class GoogleMapSpider:
-    def __init__(self):
-        self.headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36"}
-        self.store_id_url = "https://www.google.com.tw/maps/search/{store_name}"
-        self.store_name_url = "https://www.google.com.tw/maps/place/data=!4m5!3m4!1s{store_id}!8m2!3d25.0564743!4d121.5204167?authuser=0&hl=zh-TW&rclk=1"
-        self.comment_url = "https://www.google.com.tw/maps/rpc/listugcposts"
+    try:
+        response = requests.get(review_url, params=params, timeout=10)
+        response.raise_for_status()
+        data = response.json()
 
-    def get_store_id(self, store_name):
-        '''store_name必須與google地圖搜尋結果完全一致, 例如: 隱家拉麵 士林店'''
-        url = self.store_id_url.format(store_name=store_name)
-        response = requests.get(url, headers=self.headers)
-        soup = BeautifulSoup(response.text, "lxml")
-        pattern = r'0x.{16}:0x.{16}'
-        match = re.search(pattern, str(soup))
-        store_id = match.group()
+        if "result" in data and "reviews" in data["result"]:
+            reviews = data["result"]["reviews"]
+            for review in reviews:
+                if 'zh' in review['language']:
+                    return review['text']
+            return reviews[0]['text'] if reviews else None
+        return None
+    except requests.exceptions.RequestException:
+        return None
 
-        return store_id
+# 🛣 查詢路線（Google Directions API）
+def get_route(origin, destination):
+    url = f"https://maps.googleapis.com/maps/api/directions/json"
+    params = {
+        "origin": origin,
+        "destination": destination,
+        "mode": "walking",  # 可用 driving、transit、bicycling
+        "key": GOOGLE_MAPS_API_KEY
+    }
+    response = requests.get(url, params=params).json()
 
-    def get_store_name(self, store_id):
-        url = self.store_name_url.format(store_id=store_id)
-        response = requests.get(url, headers=self.headers)
-        soup = BeautifulSoup(response.text, "lxml")
-        meta_list = soup.find_all('meta')
-        store_name = []
-        for i in meta_list:
-            if '''itemprop="name"''' in str(i):
-                store_name.append(re.search('".*·', str(i)).group()[1:-2])
-        return store_name[0] if store_name else "未找到商店名稱"
+    if response["status"] == "OK":
+        steps = response["routes"][0]["legs"][0]["steps"]
+        directions = "\n".join([step["html_instructions"].replace("<b>", "").replace("</b>", "") for step in steps])
+        return directions
+    else:
+        return "🚫 無法取得路線，請確認地點是否正確。"
 
-    def get_comment(self, store_id, page_count=1, sorted_by=2):
-        next_token = ""
-        commont_list = []
-        for page in range(1, page_count + 1):
-            print(f"第 {page} 頁開始抓取")
-            params = {
-                "authuser": "0",
-                "hl": "zh-TW",
-                "gl": "tw",
-                "pb": (
-                    f"!1m6!1s{store_id}!6m4!4m1!1e1!4m1!1e3!2m2!1i10!2s"
-                    f"{next_token}!"
-                    f"5m2!1s0OBwZ4OnGsrM1e8PxIjW6AI!7e81!8m5!1b1!2b1!3b1!5b1!7b1!11m0!13m1!1e{sorted_by}"
-                )
-            }
-
-            response = requests.get(self.comment_url, params=params, headers=self.headers)
-            data = json.loads(emoji.demojize(response.text[4:]))
-            next_token = data[1]
-            commont_list.extend(data[2])
-            if not next_token:
-                break
-
-        commont_dict_list = []
-        for comment_data in commont_list:
-            try:
-                comment_date = comment_data[0][2][2][0][1][21][6][-1]
-                comment_date = datetime(comment_date[0], comment_date[1], comment_date[2], comment_date[3]).strftime('%Y/%m/%d %H:%M:%S')
-            except:
-                comment_date = None
-
-            try:
-                comment_text = comment_data[0][2][-1][0][0]
-            except:
-                comment_text = None
-
-            comment_info = {
-                "評論者": comment_data[0][1][4][5][0],
-                "評論者id": comment_data[0][0],
-                "評論者狀態": comment_data[0][1][4][5][10][0],
-                "評論者等級": comment_data[0][1][4][5][9],
-                "留言時間": comment_data[0][1][6],
-                "留言日期": comment_date,
-                "評論": comment_text,
-                "評論分數": comment_data[0][2][0][0]
-            }
-            commont_dict_list.append(comment_info)
-
-        return commont_dict_list
-
-
-# 🔄 處理使用者發送的訊息
+# 📨 處理 LINE 訊息
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
     user_input = event.message.text.strip()
 
-    if len(user_input) >= 2:  # 限制最小字數，避免無效查詢
-        results = search_restaurants(user_input)
+    if user_input.startswith("路線 "):  # 查詢路線，例如："路線 台北車站 雄大餐廳"
+        try:
+            _, origin, destination = user_input.split()
+            route_info = get_route(origin, destination)
+            reply_text = f"🗺 **從 {origin} 到 {destination} 的建議路線**\n{route_info}"
+        except:
+            reply_text = "❌ 請輸入格式：**路線 出發地 目的地**"
+        messages = [reply_text]
+
+    elif len(user_input) >= 2:  # 查詢餐廳
+        messages = search_restaurants(user_input)
     else:
-        results = [TextSendMessage(text="❌ 請輸入 **城市名稱 + 美食類型**（例如：「台北燒肉」）。")]
+        messages = ["❌ 請輸入 **城市名稱 + 美食類型**（例如：「台北燒肉」），或使用 `路線 出發地 目的地` 查詢路線。"]
 
-    line_bot_api.reply_message(event.reply_token, results)
-
+    # **發送訊息**
+    first_message_sent = False
+    for msg in messages:
+        if msg.startswith("http"):  # 圖片 URL
+            line_bot_api.push_message(
+                event.source.user_id,
+                ImageSendMessage(original_content_url=msg, preview_image_url=msg)
+            )
+        else:
+            text_message = TextSendMessage(text=msg)
+            if not first_message_sent:
+                line_bot_api.reply_message(event.reply_token, text_message)
+                first_message_sent = True
+            else:
+                line_bot_api.push_message(event.source.user_id, text_message)
 
 # 📌 Line Bot Webhook 設定
 @app.route("/callback", methods=['POST'])
@@ -182,7 +160,6 @@ def callback():
         abort(400)
 
     return 'OK'
-
 
 # 🔥 啟動 Flask 應用程式
 if __name__ == '__main__':
