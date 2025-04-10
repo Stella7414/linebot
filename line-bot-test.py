@@ -134,28 +134,35 @@ def get_reviews(place_id):
     except requests.exceptions.RequestException:
         return None
 
-# 🛣 查詢路線（Google Directions API）
+# 🚣 查詢路線（Google Directions API，已中文化並加入導航連結）
 def get_route(origin, destination):
-    url = f"https://maps.googleapis.com/maps/api/directions/json"
+    url = "https://maps.googleapis.com/maps/api/directions/json"
     params = {
         "origin": origin,
         "destination": destination,
-        "mode": "walking",  # 可用 driving、transit、bicycling
-        "language": "zh-TW", 
+        "mode": "walking",
+        "language": "zh-TW",
         "key": GOOGLE_MAPS_API_KEY
     }
-    response = requests.get(url, params=params).json()
 
-    if response["status"] == "OK":
-        steps = response["routes"][0]["legs"][0]["steps"]
-        directions = "\n".join([
-            re.sub('<[^<]+?>', '', step["html_instructions"])
-            for step in steps
-        ])
-        return directions
-    else:
-        return "🚫 無法取得路線，請確認地點是否正確。"
+    try:
+        response = requests.get(url, params=params, timeout=10)
+        response.raise_for_status()
+        data = response.json()
 
+        if data["status"] == "OK":
+            steps = data["routes"][0]["legs"][0]["steps"]
+            directions = "\n".join([
+                f"{i+1}. {re.sub('<[^<]+?>', '', step['html_instructions'])}"
+                for i, step in enumerate(steps)
+            ])
+            map_link = f"https://www.google.com/maps/dir/?api=1&origin={origin}&destination={destination}&travelmode=walking"
+            directions += f"\n\n📍 點我直接導航：\n👉 {map_link}"
+            return directions
+        else:
+            return "🚫 無法取得路線，請確認地點是否正確。"
+    except requests.exceptions.RequestException as e:
+        return f"❌ 查詢路線時發生錯誤：{e}"
 # 📨 處理 LINE 訊息
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
