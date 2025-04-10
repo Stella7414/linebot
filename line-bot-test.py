@@ -150,49 +150,42 @@ def get_route(origin, destination):
         return directions
     return "🚫 無法取得路線，請確認地點是否正確。"
 
-# ✉️ 處理文字訊息
+# 📨 處理 LINE 訊息
 @handler.add(MessageEvent, message=TextMessage)
-def handle_text(event):
-    text = event.message.text.strip()
-    if text.startswith("路線 "):
+def handle_message(event):
+    user_input = event.message.text.strip()
+
+    if user_input.startswith("路線 "):  # 查詢路線，例如："路線 台北車站 雄大餐廳"
         try:
-            _, origin, destination = text.split()
+            _, origin, destination = user_input.split()
             route_info = get_route(origin, destination)
             reply_text = f"🗺 **從 {origin} 到 {destination} 的建議路線**\n{route_info}"
-            messages = [reply_text]
         except:
-            messages = ["❌ 請輸入格式：**路線 出發地 目的地**"]
-    elif len(text) >= 2:
-        messages = search_restaurants(text)
+            reply_text = "❌ 請輸入格式：**路線 出發地 目的地**"
+        messages = [reply_text]
+
+    elif len(user_input) >= 2:  # 查詢餐廳
+        messages = search_restaurants(user_input)
     else:
-        messages = ["請輸入「城市+餐廳類型」或「路線 出發地 目的地」，也可以傳送位置查詢附近美食。"]
+        messages = ["❌ 請輸入 **城市名稱 + 美食類型**（例如：「台北燒肉」），或使用 `路線 出發地 目的地` 查詢路線。"]
 
-    send_messages(event, messages)
-
-# 📍 處理位置訊息
-@handler.add(MessageEvent, message=LocationMessage)
-def handle_location(event):
-    lat = event.message.latitude
-    lng = event.message.longitude
-    messages = search_nearby_restaurants(lat, lng)
-    send_messages(event, messages)
-
-# ✉️ 發送訊息處理
-def send_messages(event, messages):
-    first = True
+    # **發送訊息**
+    first_message_sent = False
     for msg in messages:
-        if msg.startswith("http"):
+        if msg.startswith("http"):  # 圖片 URL
             line_bot_api.push_message(
                 event.source.user_id,
                 ImageSendMessage(original_content_url=msg, preview_image_url=msg)
             )
         else:
-            m = TextSendMessage(text=msg)
-            if first:
-                line_bot_api.reply_message(event.reply_token, m)
-                first = False
+            text_message = TextSendMessage(text=msg)
+            if not first_message_sent:
+                line_bot_api.reply_message(event.reply_token, text_message)
+                first_message_sent = True
             else:
-                line_bot_api.push_message(event.source.user_id, m)
+                line_bot_api.push_message(event.source.user_id, text_message)
+
+
 
 # 📬 LINE Webhook Endpoint
 @app.route("/callback", methods=['POST'])
