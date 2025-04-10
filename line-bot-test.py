@@ -1,4 +1,5 @@
 import os
+import re
 import requests
 from flask import Flask, request, abort
 from linebot import LineBotApi, WebhookHandler
@@ -146,7 +147,10 @@ def get_route(origin, destination):
 
     if response["status"] == "OK":
         steps = response["routes"][0]["legs"][0]["steps"]
-        directions = "\n".join([step["html_instructions"].replace("<b>", "").replace("</b>", "") for step in steps])
+        directions = "\n".join([
+            re.sub('<[^<]+?>', '', step["html_instructions"])
+            for step in steps
+        ])
         return directions
     else:
         return "🚫 無法取得路線，請確認地點是否正確。"
