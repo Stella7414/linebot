@@ -196,4 +196,6 @@ def callback():
         handler.handle(body, signature)
     except InvalidSignatureError:
         abort(400)
-    except Exception as e: 
+    except Exception as e:  # 捕獲所有其他異常
+        print(f"Error: {e}")  # 記錄錯誤
+        abort(500)  # 可以返回500錯誤或根據需要處理
