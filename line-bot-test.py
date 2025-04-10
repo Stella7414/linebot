@@ -196,4 +196,4 @@ def callback():
         handler.handle(body, signature)
     except InvalidSignatureError:
         abort(400)
-    except Exception as e:  # 捕
+    except Exception as e: 
