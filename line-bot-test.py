@@ -16,9 +16,9 @@ line_bot_api = LineBotApi('WmbUAzI0q476afxlGFAI4uWPBwu2dAmtlij8/qafhL0ORORU3xzRE
 handler = WebhookHandler('dce8eedd82d6998f7ea5d5106e614c92')
 
 GOOGLE_PLACES_API_KEY = 'AIzaSyBqbjGjjpt3Bxo9RB15DE4uVBmoBRlNXVM'
-GOOGLE_MAPS_API_KEY = 'AIzaSyBqbjGjjpt3Bxo9RB15DE4uVBmoBRlNXVM' # 若相同可共用
+GOOGLE_MAPS_API_KEY = 'AIzaSyBqbjGjjpt3Bxo9RB15DE4uVBmoBRlNXVM' 
 
-# 📍 文字查詢餐廳（例如：台北燒肉）
+# 📍 文字查詢餐廳
 def search_restaurants(location):
     url = "https://maps.googleapis.com/maps/api/place/textsearch/json"
     params = {
@@ -44,13 +44,11 @@ def search_restaurants(location):
             status = r.get("business_status", "無營業資訊")
             place_id = r.get("place_id", "")
 
-            # 照片
             photo_url = None
             if "photos" in r:
                 photo_ref = r["photos"][0]["photo_reference"]
                 photo_url = f"https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference={photo_ref}&key={GOOGLE_PLACES_API_KEY}"
 
-            # 評論
             reviews = get_reviews(place_id)
 
             msg = f"🏆 **{idx}. {name}**\n⭐ 評分：{rating}/5.0\n📍 地址：{address}\n🕒 營業狀況：{status}\n"
@@ -92,13 +90,11 @@ def search_nearby_restaurants(lat, lng):
             address = r.get("vicinity", "無地址資訊")
             place_id = r.get("place_id", "")
 
-            # 照片
             photo_url = None
             if "photos" in r:
                 photo_ref = r["photos"][0]["photo_reference"]
                 photo_url = f"https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference={photo_ref}&key={GOOGLE_PLACES_API_KEY}"
 
-            # 評論
             reviews = get_reviews(place_id)
 
             msg = f"🏅 **{idx}. {name}**\n⭐ 評分：{rating}\n📍 地址：{address}\n"
@@ -134,7 +130,7 @@ def get_reviews(place_id):
     except requests.exceptions.RequestException:
         return None
 
-# 🚣 查詢路線（Google Directions API，已中文化並加入導航連結）
+# 🚣 查詢路線
 def get_route(origin, destination):
     url = "https://maps.googleapis.com/maps/api/directions/json"
     params = {
@@ -163,26 +159,9 @@ def get_route(origin, destination):
             return "🚫 無法取得路線，請確認地點是否正確。"
     except requests.exceptions.RequestException as e:
         return f"❌ 查詢路線時發生錯誤：{e}"
-# 📨 處理 LINE 訊息
-@handler.add(MessageEvent, message=TextMessage)
-def handle_message(event):
-    user_input = event.message.text.strip()
 
-    if user_input.startswith("路線 "):  # 查詢路線，例如："路線 台北車站 雄大餐廳"
-        try:
-            _, origin, destination = user_input.split()
-            route_info = get_route(origin, destination)
-            reply_text = f"🗺 **從 {origin} 到 {destination} 的建議路線**\n{route_info}"
-        except:
-            reply_text = "❌ 請輸入格式：**路線 出發地 目的地**"
-        messages = [reply_text]
-
-    elif len(user_input) >= 2:  # 查詢餐廳
-        messages = search_restaurants(user_input)
-    else:
-        messages = ["❌ 請輸入 **城市名稱 + 美食類型**（例如：「台北燒肉」），或使用 `路線 出發地 目的地` 查詢路線。"]
-
-# **發送訊息**
+# 📤 共用訊息發送函數
+def send_messages(event, messages):
     first_message_sent = False
     for msg in messages:
         if msg.startswith("http"):  # 圖片 URL
@@ -198,11 +177,33 @@ def handle_message(event):
             else:
                 line_bot_api.push_message(event.source.user_id, text_message)
 
+# 📨 處理文字訊息
+@handler.add(MessageEvent, message=TextMessage)
+def handle_message(event):
+    user_input = event.message.text.strip()
+
+    if user_input.startswith("路線 "):
+        try:
+            _, origin, destination = user_input.split()
+            route_info = get_route(origin, destination)
+            reply_text = f"🗺 **從 {origin} 到 {destination} 的建議路線**\n{route_info}"
+        except:
+            reply_text = "❌ 請輸入格式：**路線 出發地 目的地**"
+        messages = [reply_text]
+
+    elif len(user_input) >= 2:
+        messages = search_restaurants(user_input)
+    else:
+        messages = ["❌ 請輸入 **城市名稱 + 美食類型**（例如：「台北燒肉」），或使用 `路線 出發地 目的地` 查詢路線。"]
+
+    send_messages(event, messages)
+
 # 📍 處理位置訊息
 @handler.add(MessageEvent, message=LocationMessage)
 def handle_location(event):
     lat = event.message.latitude
     lng = event.message.longitude
+    print(f"📍 使用者位置：{lat}, {lng}")
     messages = search_nearby_restaurants(lat, lng)
     send_messages(event, messages)
 
