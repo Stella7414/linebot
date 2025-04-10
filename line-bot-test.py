@@ -18,17 +18,11 @@ handler = WebhookHandler('dce8eedd82d6998f7ea5d5106e614c92')
 GOOGLE_PLACES_API_KEY = 'AIzaSyBqbjGjjpt3Bxo9RB15DE4uVBmoBRlNXVM'
 GOOGLE_MAPS_API_KEY = 'AIzaSyBqbjGjjpt3Bxo9RB15DE4uVBmoBRlNXVM' 
 
-# 📍 記住使用者的最近位置
-user_locations = {}
-
 # 📍 文字查詢餐廳
-def search_restaurants(location, keyword=None):
+def search_restaurants(location):
     url = "https://maps.googleapis.com/maps/api/place/textsearch/json"
-    query = f"{location} 餐廳"
-    if keyword:
-        query += f" {keyword}"  # 加上食物類型（如果有的話）
     params = {
-        "query": query,
+        "query": f"{location} 餐廳",
         "key": GOOGLE_PLACES_API_KEY,
         "language": "zh-TW",
     }
@@ -70,7 +64,7 @@ def search_restaurants(location, keyword=None):
         return [f"❌ 無法獲取餐廳資訊：{e}"]
 
 # 📍 位置查詢附近餐廳
-def search_nearby_restaurants(lat, lng, keyword=None):
+def search_nearby_restaurants(lat, lng):
     url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
     params = {
         "location": f"{lat},{lng}",
@@ -87,10 +81,6 @@ def search_nearby_restaurants(lat, lng, keyword=None):
 
         if not data.get("results"):
             return ["😢 附近找不到餐廳，換個地點試試吧！"]
-
-        # 篩選符合食物關鍵字（如果有的話）
-        if keyword:
-            data["results"] = [r for r in data["results"] if keyword in r.get("name", "")]
 
         restaurants = sorted(data["results"], key=lambda r: r.get("rating", 0), reverse=True)[:3]
         messages = ["📍 **你附近的熱門餐廳** 🍽\n"]
@@ -140,6 +130,36 @@ def get_reviews(place_id):
     except requests.exceptions.RequestException:
         return None
 
+# 🚣 查詢路線
+def get_route(origin, destination):
+    url = "https://maps.googleapis.com/maps/api/directions/json"
+    params = {
+        "origin": origin,
+        "destination": destination,
+        "mode": "walking",
+        "language": "zh-TW",
+        "key": GOOGLE_MAPS_API_KEY
+    }
+
+    try:
+        response = requests.get(url, params=params, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+
+        if data["status"] == "OK":
+            steps = data["routes"][0]["legs"][0]["steps"]
+            directions = "\n".join([
+                f"{i+1}. {re.sub('<[^<]+?>', '', step['html_instructions'])}"
+                for i, step in enumerate(steps)
+            ])
+            map_link = f"https://www.google.com/maps/dir/?api=1&origin={origin}&destination={destination}&travelmode=walking"
+            directions += f"\n\n📍 點我直接導航：\n👉 {map_link}"
+            return directions
+        else:
+            return "🚫 無法取得路線，請確認地點是否正確。"
+    except requests.exceptions.RequestException as e:
+        return f"❌ 查詢路線時發生錯誤：{e}"
+
 # 📤 共用訊息發送函數
 def send_messages(event, messages):
     first_message_sent = False
@@ -157,34 +177,34 @@ def send_messages(event, messages):
             else:
                 line_bot_api.push_message(event.source.user_id, text_message)
 
-# 📍 記錄使用者的最後位置
+# 📨 處理文字訊息
+@handler.add(MessageEvent, message=TextMessage)
+def handle_message(event):
+    user_input = event.message.text.strip()
+
+    if user_input.startswith("路線 "):
+        try:
+            _, origin, destination = user_input.split()
+            route_info = get_route(origin, destination)
+            reply_text = f"🗺 **從 {origin} 到 {destination} 的建議路線**\n{route_info}"
+        except:
+            reply_text = "❌ 請輸入格式：**路線 出發地 目的地**"
+        messages = [reply_text]
+
+    elif len(user_input) >= 2:
+        messages = search_restaurants(user_input)
+    else:
+        messages = ["❌ 請輸入 **城市名稱 + 美食類型**（例如：「台北燒肉」），或使用 `路線 出發地 目的地` 查詢路線。"]
+
+    send_messages(event, messages)
+
+# 📍 處理位置訊息
 @handler.add(MessageEvent, message=LocationMessage)
 def handle_location(event):
     lat = event.message.latitude
     lng = event.message.longitude
-    user_locations[event.source.user_id] = (lat, lng)  # 記住位置
-    messages = ["👍 已記錄您的位置！請輸入「附近 食物」來查詢附近餐廳。"]
-    send_messages(event, messages)
-
-# 📝 處理文字訊息
-@handler.add(MessageEvent, message=TextMessage)
-def handle_message(event):
-    user_input = event.message.text.strip()
-    user_id = event.source.user_id
-
-    if user_input.startswith("附近 "):  # 查詢附近餐廳，並根據關鍵字過濾
-        keyword = user_input[2:].strip()  # 取得食物關鍵字（例如：拉麵）
-        if user_id in user_locations:
-            lat, lng = user_locations[user_id]
-            messages = search_nearby_restaurants(lat, lng, keyword)
-        else:
-            messages = ["❌ 您尚未提供位置，請先發送您的位置。"]
-    
-    elif len(user_input) >= 2:
-        messages = search_restaurants(user_input)  # 查詢某個地點的餐廳
-    else:
-        messages = ["❌ 請輸入 **城市名稱 + 美食類型**（例如：「台北燒肉」），或使用 `附近 食物` 查詢附近餐廳。"]
-
+    print(f"📍 使用者位置：{lat}, {lng}")
+    messages = search_nearby_restaurants(lat, lng)
     send_messages(event, messages)
 
 # 📬 LINE Webhook Endpoint
@@ -196,6 +216,8 @@ def callback():
         handler.handle(body, signature)
     except InvalidSignatureError:
         abort(400)
-    except Exception as e:  # 捕獲所有其他異常
-        print(f"Error: {e}")  # 記錄錯誤
-        abort(500)  # 可以返回500錯誤或根據需要處理
+    return 'OK'
+
+# 🚀 啟動 Flask
+if __name__ == '__main__':
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
