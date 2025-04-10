@@ -193,4 +193,7 @@ def callback():
     signature = request.headers.get('X-Line-Signature', '')
     body = request.get_data(as_text=True)
     try:
-        handler.handle
+        handler.handle(body, signature)
+    except InvalidSignatureError:
+        abort(400)
+    except Exception as e:  # 捕
