@@ -84,13 +84,13 @@ def search_nearby_restaurants(lat, lng):
             return ["😢 附近找不到餐廳，換個地點試試吧！"]
 
         restaurants = sorted(data["results"], key=lambda r: r.get("rating", 0), reverse=True)[:3]
-        messages = ["📍 **你附近的熱門餐廳** 🍽\n"]
+        messages = ["🍽 **熱門餐廳推薦** 🍽\n"]
         for idx, r in enumerate(restaurants, start=1):
             name = r.get("name", "未知餐廳")
             rating = r.get("rating", "無評分")
-            address = r.get("vicinity", "無地址資訊")
+            address = r.get("formatted_address", "無地址資訊")
+            status = r.get("business_status", "無營業資訊")
             place_id = r.get("place_id", "")
-
             # 照片
             photo_url = None
             if "photos" in r:
@@ -100,7 +100,7 @@ def search_nearby_restaurants(lat, lng):
             # 評論
             reviews = get_reviews(place_id)
 
-            msg = f"🏅 **{idx}. {name}**\n⭐ 評分：{rating}\n📍 地址：{address}\n"
+            msg = f"🏆 **{idx}. {name}**\n⭐ 評分：{rating}/5.0\n📍 地址：{address}\n🕒 營業狀況：{status}\n"
             if reviews:
                 msg += f"💬 評論：{reviews}\n"
             msg += f"🚗 [導航](https://www.google.com/maps/search/?api=1&query={address.replace(' ', '+')})\n"
