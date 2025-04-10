@@ -133,22 +133,23 @@ def get_reviews(place_id):
     except requests.exceptions.RequestException:
         return None
 
-# 🛣 查詢路線
+# 🛣 查詢路線（Google Directions API）
 def get_route(origin, destination):
-    url = "https://maps.googleapis.com/maps/api/directions/json"
+    url = f"https://maps.googleapis.com/maps/api/directions/json"
     params = {
         "origin": origin,
         "destination": destination,
-        "mode": "walking",
+        "mode": "walking",  # 可用 driving、transit、bicycling
         "key": GOOGLE_MAPS_API_KEY
     }
-
     response = requests.get(url, params=params).json()
+
     if response["status"] == "OK":
         steps = response["routes"][0]["legs"][0]["steps"]
-        directions = "\n".join(step["html_instructions"].replace("<b>", "").replace("</b>", "") for step in steps)
+        directions = "\n".join([step["html_instructions"].replace("<b>", "").replace("</b>", "") for step in steps])
         return directions
-    return "🚫 無法取得路線，請確認地點是否正確。"
+    else:
+        return "🚫 無法取得路線，請確認地點是否正確。"
 
 # ✉️ 處理文字訊息
 @handler.add(MessageEvent, message=TextMessage)
