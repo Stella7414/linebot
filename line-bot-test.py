@@ -141,6 +141,7 @@ def get_route(origin, destination):
         "origin": origin,
         "destination": destination,
         "mode": "walking",  # 可用 driving、transit、bicycling
+        "language": "zh-TW", 
         "key": GOOGLE_MAPS_API_KEY
     }
     response = requests.get(url, params=params).json()
